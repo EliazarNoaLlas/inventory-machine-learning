@@ -54,9 +54,6 @@ if uploaded_file is not None:
         #  verifica si la cantidad de columnas no es la misma.
         if len(df.columns) != len(new_df.columns):
             st.error("Error: El archivo cargado no tiene la misma cantidad de columnas que el archivo por defecto.")
-        #  verifica si los tipos de datos de las columnas no son iguales.
-        elif not df.dtypes.equals(new_df.dtypes):
-            st.error("Error: El archivo cargado no tiene el mismo formato de datos que el archivo por defecto.")
         else:
             # Guardar y actualizar el nuevo DataFrame
             new_df.to_excel("./data/Melsol-test.xlsx", index=False)
