@@ -17,6 +17,9 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
+from fpdf import FPDF
+import base64
+
 
 # ========== Configurar la página ================
 st.set_page_config(
@@ -163,3 +166,69 @@ with container2:
         rounded_prediction = int(round(new_predictions[0]))
         st.markdown(f'<div style="{style}">Predicción de Productos que se venderán: {rounded_prediction}</div>',
                     unsafe_allow_html=True)
+
+
+# Crear una clase personalizada que herede de FPDF
+class PDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 10, 'Resultados de Predicciones', 0, 1, 'C')
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
+
+
+# Función para crear el PDF
+def create_pdf(df):
+    pdf = PDF()
+    pdf.add_page()
+
+    # Título del PDF
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, 'Resultados de Predicciones', 0, 1, 'C')
+    pdf.ln(10)
+
+    # Encabezados de columna en negrita
+    pdf.set_font('Arial', 'B', 5)
+    col_width = 25
+    row_height = 10
+    for col in df.columns:
+        # Dividir el nombre de la columna en dos partes
+        col_name_parts = col.split()
+        # Imprimir cada parte con un salto de línea entre ellas
+        for part in col_name_parts:
+            pdf.cell(col_width, row_height, part, 1)
+            pdf.ln(row_height / 2)  # Salto de línea más pequeño
+        pdf.ln(row_height / 2)  # Salto de línea más pequeño adicional para separar las columnas
+    pdf.ln()
+
+    # Contenido de la tabla
+    pdf.set_font('Arial', '', 12)
+    for index, row in df.iterrows():
+        for col in df.columns:
+            pdf.cell(col_width, row_height, str(row[col]), 1)
+        pdf.ln()
+
+    # Guardar el PDF
+    pdf_filename = "resultados_prediccion.pdf"
+    pdf.output(pdf_filename)
+
+    return pdf_filename
+
+
+# Botón para descargar PDF
+if st.button("Descargar Resultados como PDF"):
+    # Generar el PDF
+    pdf_filename = create_pdf(df_con_predicciones)
+    st.success(f"El reporte se ha descargado como {pdf_filename}")
+
+    # Convertir el PDF en bytes para descargarlo
+    with open(pdf_filename, "rb") as f:
+        pdf_bytes = f.read()
+
+    # Codificar el PDF en base64
+    pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+    href = f'<a href="data:application/pdf;base64,{pdf_base64}" download="resultados_prediccion.pdf">Descargar PDF</a>'
+    st.markdown(href, unsafe_allow_html=True)
