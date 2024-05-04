@@ -1,4 +1,14 @@
-# ================================== Importando Librerias =============================
+# File: Predicciones.py
+# Author: victo
+# Copyright: 2024, Smart Cities Peru.
+# License: MIT
+#
+# Purpose:
+# This is the entry point for the application.
+#
+# Last Modified: 2024-05-03
+
+# ================================= Importando Librerias =============================
 from pages.Modelo_ import bosque
 # Importar las columnas del modelo
 from pages.Modelo_ import X
@@ -8,16 +18,15 @@ import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
 
-# ==========================================  Configurar la página =========================================================
+# ========== Configurar la página ================
 st.set_page_config(
     page_title="Predicciones de Ventas",
     page_icon=":chart_with_upwards_trend:",
     layout="wide",
     initial_sidebar_state="expanded"  # Puedes ajustar según tus preferencias
 )
-#============================================================================================================================
 
-# ==========================================  Baner =========================================================================
+# ==========================================  Baner ====================================================================
 # Cargar el componente de BannerPersonalizado.html
 with open("./utils/Baner.html", "r", encoding="utf-8") as file:
     custom_banner_html = file.read()
@@ -33,28 +42,23 @@ st.markdown("""
 """ % custom_styles_css, unsafe_allow_html=True)
 
 st.markdown(custom_banner_html, unsafe_allow_html=True)
-#============================================================================================================================
 
-# ==========================================  Titulo de la Pagina ===========================================================
+# ==========================================  Titulo de la Pagina ======================================================
 st.markdown("## :chart_with_upwards_trend: Predicciones")
-## espacio en la parte superior de la pagin
-st.markdown('<style>div.block-container{padding-top:1rem;}</style>',unsafe_allow_html=True)
-#============================================================================================================================
+st.markdown('<style>div.block-container{padding-top:1rem;}</style>', unsafe_allow_html=True)
 
 # Componente para cargar un archivo Excel
 uploaded_file = st.file_uploader(":file_folder: Cargar archivo Excel", type=["xlsx", "xls"])
-# ================================================  Cargar Datos  ===========================================================
+# ================================================  Cargar Datos  ======================================================
 # Leer el conjunto de datos por defecto
 df = pd.read_excel("./data/Diclofenaco-prediccion.xlsx", engine="openpyxl")
 # Carga el archivo y crea un DataFrame si se ha cargado un archivo
 if uploaded_file is not None:
     filename = uploaded_file.name
     st.write(filename)
-
     try:
         new_df = pd.read_excel(uploaded_file, engine="openpyxl")
         new_df.columns = df.columns
-        # Verificar la consistencia de las columnas y tipos de datos
         #  verifica si la cantidad de columnas no es la misma.
         if len(df.columns) != len(new_df.columns):
             st.error("Error: El archivo cargado no tiene la misma cantidad de columnas que el archivo por defecto.")
@@ -68,13 +72,13 @@ if uploaded_file is not None:
         st.error(f"Error al cargar el archivo: {str(e)}")
 else:
     st.warning("Ningún archivo se ha cargado, se utilizará un archivo por defecto.")
-#============================================================================================================================
+# ============================================================================================================================
 
 # Filtrar las características necesarias utilizando las columnas del modelo
 columnas_necesarias = X.columns
-nuevos_datos =  df[columnas_necesarias]
+nuevos_datos = df[columnas_necesarias]
 predicciones = bosque.predict(nuevos_datos) + 10
-predicciones =  np.round(predicciones).astype(int)
+predicciones = np.round(predicciones).astype(int)
 # Crear un nuevo DataFrame con las predicciones
 df_predicciones = pd.DataFrame({"PRODUCTOS VENDIDOS": predicciones})
 
@@ -83,15 +87,17 @@ df_con_predicciones = pd.concat([df, df_predicciones], axis=1)
 
 # Crear una tabla con Plotly sin formato de coma decimal en la columna 'PRODUCTOS VENDIDOS'
 fig_predicciones = go.Figure(data=[go.Table(
-    header=dict(values=['PRODUCTOS QUE SE VENDERAN' if col == 'PRODUCTOS VENDIDOS' else col for col in df_con_predicciones.columns],
+    header=dict(values=['PRODUCTOS QUE SE VENDERÁN' if col == 'PRODUCTOS VENDIDOS' else col for col in
+                        df_con_predicciones.columns],
                 fill_color='darkslategray', line_color='white', align='center'),
     cells=dict(values=[
-        df_con_predicciones[col] if col != 'PRODUCTOS VENDIDOS' else df_con_predicciones[col].apply(lambda x: f'{int(x)}' if not pd.isna(x) else '')
+        df_con_predicciones[col] if col != 'PRODUCTOS VENDIDOS' else df_con_predicciones[col].apply(
+            lambda x: f'{int(x)}' if not pd.isna(x) else '')
         for col in df_con_predicciones.columns
-    ], 
-    fill_color=['dimgray' if col != 'PRODUCTOS VENDIDOS' else 'steelblue' for col in df_con_predicciones.columns],
-    line_color='white', align='center',
-    format=[None if col != 'PRODUCTOS VENDIDOS' else None for col in df_con_predicciones.columns])
+    ],
+        fill_color=['dimgray' if col != 'PRODUCTOS VENDIDOS' else 'steelblue' for col in df_con_predicciones.columns],
+        line_color='white', align='center',
+        format=[None if col != 'PRODUCTOS VENDIDOS' else None for col in df_con_predicciones.columns])
 )])
 
 # Estilo adicional para la tabla
@@ -114,8 +120,9 @@ with container1:
     with col2:
         # Crear gráfico de dispersión entre Demanda del Producto y Productos Vendidos Predichos
         scatter_predicciones = px.scatter(df_con_predicciones, x='DEMANDA DEL PRODUCTO', y='PRODUCTOS VENDIDOS',
-                                        title='Diagrama de Dispersión: Demanda del Producto vs Productos Vendidos',
-                                        labels={'DEMANDA DEL PRODUCTO': 'DEMANDA DEL PRODUCTO', 'PRODUCTOS VENDIDOS': 'PRODUCTOS VENDIDOS'})
+                                          title='Diagrama de Dispersión: Demanda del Producto vs Productos Vendidos',
+                                          labels={'DEMANDA DEL PRODUCTO': 'DEMANDA DEL PRODUCTO',
+                                                  'PRODUCTOS VENDIDOS': 'PRODUCTOS VENDIDOS'})
         # Mostrar el gráfico de dispersión
         st.plotly_chart(scatter_predicciones)
 
@@ -154,4 +161,5 @@ with container2:
 
         # Imprimir predicción en el cuadro de texto con estilo
         rounded_prediction = int(round(new_predictions[0]))
-        st.markdown(f'<div style="{style}">Predicción de Productos Vendidos: {rounded_prediction}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="{style}">Predicción de Productos que se venderán: {rounded_prediction}</div>',
+                    unsafe_allow_html=True)

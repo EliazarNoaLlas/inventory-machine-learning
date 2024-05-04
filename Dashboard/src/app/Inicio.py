@@ -1,16 +1,25 @@
+# File: Inicio.py
+# Author: victo
+# Copyright: 2024, Smart Cities Peru.
+# License: MIT
+#
+# Purpose:
+# This is the entry point for the application.
+#
+# Last Modified: 2024-05-03
+
 import pandas as pd
-import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
 
-# ==========================================  Configurar la página =========================================================
+# =================  Configurar la página ================
 st.set_page_config(
     page_title="Análisis de Ventas",
     page_icon=":chart_with_upwards_trend:",
     layout="wide"
 )
-#============================================================================================================================
-# ==========================================  Baner =========================================================================
+
+# ============ Banner =================
 # Cargar el componente de BannerPersonalizado.html
 with open("utils/Baner.html", "r", encoding="utf-8") as file:
     custom_banner_html = file.read()
@@ -26,16 +35,12 @@ st.markdown("""
 """ % custom_styles_css, unsafe_allow_html=True)
 
 st.markdown(custom_banner_html, unsafe_allow_html=True)
-#============================================================================================================================
 
-# ==========================================  Titulo de la Pagina ===========================================================
+# ==========================================  Titulo de la Pagina ======================================================
 st.markdown("## :date: Cargando el conjunto de datos de entrenamiento :shopping_trolley:")
-## espacio en la parte superior de la pagin
-st.markdown('<style>div.block-container{padding-top:1rem;}</style>',unsafe_allow_html=True)
-#============================================================================================================================
+st.markdown('<style>div.block-container{padding-top:1rem;}</style>', unsafe_allow_html=True)
 
-
-# ================================================  Cargar Datos  ===========================================================
+# ================================================  Cargar Datos  ======================================================
 
 # Componente para cargar el conjunto de datos
 uploaded_file = st.file_uploader(":file_folder: Cargar un archivo Excel", type=["xlsx", "xls"])
@@ -50,7 +55,6 @@ if uploaded_file is not None:
     try:
         new_df = pd.read_excel(uploaded_file, engine="openpyxl")
         new_df.columns = df.columns
-        # Verificar la consistencia de las columnas y tipos de datos
         #  verifica si la cantidad de columnas no es la misma.
         if len(df.columns) != len(new_df.columns):
             st.error("Error: El archivo cargado no tiene la misma cantidad de columnas que el archivo por defecto.")
@@ -64,12 +68,14 @@ if uploaded_file is not None:
 else:
     st.warning("Ningún archivo se ha cargado, se utilizará un archivo por defecto.")
 
-
 # Dividir la página en dos columnas
 col1, col2 = st.columns(2)
 
 # Agregar opciones para modificar el conjunto de datos
-operation = st.sidebar.radio("Seleccione una operación:", ["Actualizar Columna", "Crear Fila", "Actualizar Fila", "Eliminar Fila"])
+operation = st.sidebar.radio("Seleccione una operación:", ["Actualizar Columna",
+                                                           "Crear Fila",
+                                                           "Actualizar Fila",
+                                                           "Eliminar Fila"])
 
 # Modificación del conjunto de datos
 if operation == "Actualizar Columna":
@@ -99,9 +105,11 @@ else:
         with col1:
             new_row = {
                 'MES': st.number_input("MES", value=last_row['MES']),
-                'PRODUCTOS ALMACENADOS': st.number_input("PRODUCTOS ALMACENADOS", value=last_row['PRODUCTOS ALMACENADOS']),
+                'PRODUCTOS ALMACENADOS': st.number_input("PRODUCTOS ALMACENADOS",
+                                                         value=last_row['PRODUCTOS ALMACENADOS']),
                 'GASTO DE MARKETING': st.number_input("GASTO DE MARKETING", value=0.4),
-                'GASTO DE ALMACENAMIENTO': st.number_input("GASTO DE ALMACENAMIENTO", value=last_row['GASTO DE ALMACENAMIENTO']),
+                'GASTO DE ALMACENAMIENTO': st.number_input("GASTO DE ALMACENAMIENTO",
+                                                           value=last_row['GASTO DE ALMACENAMIENTO']),
                 'DEMANDA DEL PRODUCTO': st.number_input("DEMANDA DEL PRODUCTO", value=last_row['DEMANDA DEL PRODUCTO']),
                 'FESTIVIDAD': st.number_input("FESTIVIDAD", value=last_row['FESTIVIDAD']),
                 'PRECIO DE VENTA': st.number_input("PRECIO DE VENTA", value=last_row['PRECIO DE VENTA']),
@@ -118,18 +126,23 @@ else:
     elif operation == "Actualizar Fila":
         with col1:
             # Agregar opciones para seleccionar una fila para actualizar
-            row_to_update = st.selectbox("Selecciona la fila para actualizar:", df.index + 1 ) -1
+            row_to_update = st.selectbox("Selecciona la fila para actualizar:", df.index + 1) - 1
 
             # Crear una nueva fila con datos ingresados por el usuario
             updated_row = {
                 'MES': st.number_input("MES", value=df.loc[row_to_update, 'MES']),
-                'PRODUCTOS ALMACENADOS': st.number_input("PRODUCTOS ALMACENADOS", value=df.loc[row_to_update, 'PRODUCTOS ALMACENADOS']),
-                'GASTO DE MARKETING': st.number_input("GASTO DE MARKETING", value=df.loc[row_to_update, 'GASTO DE MARKETING']),
-                'GASTO DE ALMACENAMIENTO': st.number_input("GASTO DE ALMACENAMIENTO", value=df.loc[row_to_update, 'GASTO DE ALMACENAMIENTO']),
-                'DEMANDA DEL PRODUCTO': st.number_input("DEMANDA DEL PRODUCTO", value=df.loc[row_to_update, 'DEMANDA DEL PRODUCTO']),
+                'PRODUCTOS ALMACENADOS': st.number_input("PRODUCTOS ALMACENADOS",
+                                                         value=df.loc[row_to_update, 'PRODUCTOS ALMACENADOS']),
+                'GASTO DE MARKETING': st.number_input("GASTO DE MARKETING",
+                                                      value=df.loc[row_to_update, 'GASTO DE MARKETING']),
+                'GASTO DE ALMACENAMIENTO': st.number_input("GASTO DE ALMACENAMIENTO",
+                                                           value=df.loc[row_to_update, 'GASTO DE ALMACENAMIENTO']),
+                'DEMANDA DEL PRODUCTO': st.number_input("DEMANDA DEL PRODUCTO",
+                                                        value=df.loc[row_to_update, 'DEMANDA DEL PRODUCTO']),
                 'FESTIVIDAD': st.number_input("FESTIVIDAD", value=df.loc[row_to_update, 'FESTIVIDAD']),
                 'PRECIO DE VENTA': st.number_input("PRECIO DE VENTA", value=df.loc[row_to_update, 'PRECIO DE VENTA']),
-                'PRODUCTOS VENDIDOS': st.number_input("PRODUCTOS VENDIDOS", value=df.loc[row_to_update, 'PRODUCTOS VENDIDOS'])
+                'PRODUCTOS VENDIDOS': st.number_input("PRODUCTOS VENDIDOS",
+                                                      value=df.loc[row_to_update, 'PRODUCTOS VENDIDOS'])
             }
 
             # Botón de submit para actualizar la fila
@@ -155,7 +168,7 @@ else:
             # Botón de submit para confirmar la eliminación
             submit_delete_button = form_delete.form_submit_button("Eliminar Fila")
 
-            # Si se presiona el botón, eliminar la fila seleccionada del conjunto de datos
+            # Sí se presiona el botón, eliminar la fila seleccionada del conjunto de datos
             if submit_delete_button:
                 df = df.drop(row_to_delete).reset_index(drop=True)
                 df.to_excel("data/Melsol-test.xlsx", index=False)
@@ -166,15 +179,17 @@ else:
 # Columna derecha: Visualizar el conjunto de datos 
 with col2:
     st.write("### Conjunto de Datos:")
-    
+
     # Crear una copia del DataFrame con índices desplazados en 1
     df_display = df.copy()
     df_display.index = df_display.index + 1
-    
+
     # Crear una tabla con Plotly solo con las primeras 5 filas
     fig = go.Figure(data=[go.Table(
-        header=dict(values=['Index'] + list(df_display.columns), fill_color='darkslategray', line_color='white', align='center'),
-        cells=dict(values=[df_display.index] + [df_display[col] for col in df_display.columns], fill_color='dimgray', line_color='white', align='center')
+        header=dict(values=['Index'] + list(df_display.columns), fill_color='darkslategray', line_color='white',
+                    align='center'),
+        cells=dict(values=[df_display.index] + [df_display[col] for col in df_display.columns], fill_color='dimgray',
+                   line_color='white', align='center')
     )])
 
     # Estilo adicional para la tabla
@@ -183,7 +198,3 @@ with col2:
     )
 
     st.plotly_chart(fig)
-
-
-
-

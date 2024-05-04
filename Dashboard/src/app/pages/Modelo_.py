@@ -1,3 +1,13 @@
+# File: Modelo_.py
+# Author: victo
+# Copyright: 2024, Smart Cities Peru.
+# License: MIT
+#
+# Purpose:
+# This is the entry point for the application.
+#
+# Last Modified: 2024-05-03
+
 # ================================== Importando Librerias =============================
 import pandas as pd
 import numpy as np
@@ -11,7 +21,6 @@ import plotly as pl
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-import os
 import warnings
 from sklearn.model_selection import cross_val_score, KFold
 from sklearn.metrics import make_scorer
@@ -19,13 +28,13 @@ from sklearn import metrics
 
 warnings.filterwarnings('ignore')
 
-# ==========================================  Configurar la página =========================================================
+# ==========================================  Configurar la página =====================================================
 st.set_page_config(
     page_title="Modelado",
     page_icon=":chart_with_upwards_trend:",
     layout="wide"
 )
-#============================================================================================================================
+# ======================================================================================================================
 # Cargar el componente de BannerPersonalizado.html
 with open("./utils/Baner.html", "r", encoding="utf-8") as file:
     custom_banner_html = file.read()
@@ -41,18 +50,14 @@ st.markdown("""
 """ % custom_styles_css, unsafe_allow_html=True)
 
 st.markdown(custom_banner_html, unsafe_allow_html=True)
-#============================================================================================================================
-# ==========================================  Titulo de la Pagina ===========================================================
+# ==========================================  Titulo de la Pagina =====================================================
 st.markdown("## :date: Modelo RandomForest Regression")
-## espacio en la parte superior de la pagin
-st.markdown('<style>div.block-container{padding-top:1rem;}</style>',unsafe_allow_html=True)
-#============================================================================================================================
+st.markdown('<style>div.block-container{padding-top:1rem;}</style>', unsafe_allow_html=True)
 
-# ================================================  Cargar Datos  ===========================================================
-# Leer el conjunto de datos por defecto
+# ================================================  Cargar Datos  =====================================================
 df = pd.read_excel("./data/Melsol-test.xlsx", engine="openpyxl")
 
-# ====================================================== MANEJO DE DATOS ======================================================
+# ====================================================== MANEJO DE DATOS ===============================================
 # Función para manejar outliers en una columna
 def handle_outliers(column, cap_value=None):
     Q1 = column.quantile(0.25)
@@ -60,28 +65,30 @@ def handle_outliers(column, cap_value=None):
     IQR = Q3 - Q1
     lower_limit = Q1 - 1.5 * IQR
     upper_limit = Q3 + 1.5 * IQR
-    
+
     if cap_value is not None:
         column = column.clip(lower=lower_limit, upper=cap_value)
     else:
         column = column.clip(lower=lower_limit, upper=upper_limit)
-    
+
     return column
+
 
 # Función para analizar y eliminar columnas con un solo valor único
 def analizar_y_eliminar_ruido(df):
     columnas_a_eliminar = []
-    
+
     for columna in df.columns:
         if df[columna].nunique() == 1:
             columnas_a_eliminar.append(columna)
             print(f'Columna "{columna}" tiene un solo valor único. Se considera ruido.')
-    
+
     df_sin_ruido = df.drop(columnas_a_eliminar, axis=1)
-    
+
     print(f'\nColumnas eliminadas: {columnas_a_eliminar}')
-    
+
     return df_sin_ruido
+
 
 # Aplicar funciones para manejar outliers y eliminar ruido
 df['PRODUCTOS ALMACENADOS'] = handle_outliers(df['PRODUCTOS ALMACENADOS'])
@@ -89,10 +96,9 @@ df['DEMANDA DEL PRODUCTO'] = handle_outliers(df['DEMANDA DEL PRODUCTO'])
 df['PRODUCTOS VENDIDOS'] = handle_outliers(df['PRODUCTOS VENDIDOS'])
 
 df_sin_ruido = analizar_y_eliminar_ruido(df)
-# ====================================================== MANEJO DE DATOS ======================================================
+# ====================================================== MANEJO DE DATOS ===============================================
 
-# ====================================================== ENTRENAMIENTO ======================================================
-# Definir las características (X) y la variable objetivo (y)
+# ====================================================== ENTRENAMIENTO =================================================
 X = df_sin_ruido.drop('PRODUCTOS VENDIDOS', axis=1)
 y = df_sin_ruido['PRODUCTOS VENDIDOS']
 
@@ -113,7 +119,8 @@ bosque = RandomForestRegressor(
 bosque.fit(X_train, y_train)
 
 # Evaluación del modelo
-# Métrica a utilizar (en este caso, negativo del Error Cuadrático Medio para que sea coherente con la validación cruzada)
+# Métrica a utilizar (en este caso, negativo del Error Cuadrático
+# Medio para que sea coherente con la validación cruzada)
 metrica = make_scorer(mean_squared_error, greater_is_better=False)
 
 # Validación cruzada
@@ -146,16 +153,18 @@ mse_value = metrics.mean_squared_error(y_test, y_pred)
 rmse_value = np.sqrt(metrics.mean_squared_error(y_test, y_pred))
 r2_value = r2_score(y_test, y_pred)
 
-
-# ====================================================== GRAFICANDO ======================================================
+# ====================================================== GRAFICANDO ===================================================
 
 # Gráfico de dispersión (Scatter Plot) con Plotly
-scatter_fig = px.scatter(x=y_test, y=y_pred, title="Gráfico de Dispersión", labels={"x": "Data Actual", "y": "Predicciones"})
+scatter_fig = px.scatter(x=y_test, y=y_pred, title="Gráfico de Dispersión",
+                         labels={"x": "Data Actual", "y": "Predicciones"})
 
 # Curva de regresión
 x_range = np.linspace(min(y_test), max(y_test), 100)
 y_range = x_range  # Línea de regresión ideal (y = x)
-scatter_fig.add_scatter(x=x_range, y=y_range, mode='lines', name='Línea de Regresión Ideal', line=dict(color='red', dash='dash'))
+scatter_fig.add_scatter(x=x_range, y=y_range, mode='lines', name='Línea de Regresión Ideal',
+                        line=dict(color='red', dash='dash'))
+
 
 def plot_metric(metrics_dict):
     fig = go.Figure()
@@ -187,8 +196,10 @@ def plot_metric(metrics_dict):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+
 def plot_gauge(
-    indicator_number, indicator_color, indicator_suffix, indicator_title, max_bound
+        indicator_number, indicator_color, indicator_suffix, indicator_title, max_bound
 ):
     fig = go.Figure(
         go.Indicator(
@@ -215,6 +226,7 @@ def plot_gauge(
         margin=dict(l=10, r=10, t=50, b=10, pad=8),
     )
     st.plotly_chart(fig, use_container_width=True)
+
 
 # Crear dos columnas
 col1, col2 = st.columns(2)
@@ -306,12 +318,8 @@ with col1:
     mse = mean_squared_error(y_test, y_pred)
     rmse = np.sqrt(mse)
     r2 = r2_score(y_test, y_pred)
-    metrics_text = f"Mean Absolute Error: {mae:.2f}\nMean Squared Error: {mse:.2f}\nRoot Mean Squared Error: {rmse:.2f}\nR²: {r2:.2f}"
+    metrics_text = (f"Mean Absolute Error: "
+                    f"{mae:.2f}\nMean Squared Error: {mse:.2f}\nRoot Mean Squared Error: {rmse:.2f}\nR²: {r2:.2f}")
 
     # Impresión del modelo y resultados
     st.plotly_chart(bar_fig)
-
-
-    
-
-
