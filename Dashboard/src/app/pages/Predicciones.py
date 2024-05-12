@@ -207,7 +207,7 @@ styled_df = styled_df.set_table_styles([{
 }])
 
 # Exportar DataFrame con estilo como una imagen
-dfi.export(styled_df, 'images/ventas_mensuales.png')
+dfi.export(styled_df, 'ventas_mensuales.png')
 
 
 def generate_matplotlib_line_chart(df, filename):
@@ -251,8 +251,8 @@ def generate_matplotlib_scatter_plot(df, filename):
 
 
 # Utilizando las funciones proporcionadas
-generate_matplotlib_line_chart(df_con_predicciones, 'images/productos_vendidos_por_mes_y_festividad.png')
-generate_matplotlib_scatter_plot(df_con_predicciones, 'images/dispersion_productos_almacenados_vs_vendidos.png')
+generate_matplotlib_line_chart(df_con_predicciones, 'productos_vendidos_por_mes_y_festividad.png')
+generate_matplotlib_scatter_plot(df_con_predicciones, 'dispersion_productos_almacenados_vs_vendidos.png')
 
 
 def generate_matplotlib_scatter_plot(df, filename):
@@ -298,8 +298,8 @@ def generate_profit_plot(df, filename):
     plt.savefig(filename, dpi=300, bbox_inches='tight', pad_inches=0)
 
 
-generate_matplotlib_scatter_plot(df_con_predicciones, 'images/dispersion_productos_vendidos_vs_almacenados.png')
-generate_profit_plot(df_con_predicciones, 'images/ganancias_mensuales.png')
+generate_matplotlib_scatter_plot(df_con_predicciones, 'dispersion_productos_vendidos_vs_almacenados.png')
+generate_profit_plot(df_con_predicciones, 'ganancias_mensuales.png')
 
 
 # Crear una clase personalizada que herede de FPDF
@@ -316,7 +316,7 @@ class PDF(FPDF):
 
 def create_letterhead(pdf, width, height):
     # Añadir el membrete
-    pdf.image("images/logo.png", 0, 0, width)
+    pdf.image("logo.png", 0, 0, width)
 
     # Ajustar la posición vertical para que el título aparezca después del membrete
     pdf.set_y(height / 4)
@@ -366,7 +366,7 @@ def create_pdf(df):
     pdf.ln(15)
 
     # Add table
-    pdf.image("images/ventas_mensuales.png", w=170)
+    pdf.image("ventas_mensuales.png", w=170)
     pdf.ln(10)
 
     write_to_pdf(pdf, "Se observan barras en las celdas de la columna donde se visualiza de mejor manera "
@@ -384,8 +384,8 @@ def create_pdf(df):
                  "2. Las visualizaciones a continuación muestran la tendencia de las ventas por mes ")
     pdf.ln(15)
     # Add the generated visualisations to the PDF
-    pdf.image("images/productos_vendidos_por_mes_y_festividad.png", 10, 30, width / 2 - 15)
-    pdf.image("images/dispersion_productos_almacenados_vs_vendidos.png", width / 2 + 10, 30, width / 2 - 15)
+    pdf.image("productos_vendidos_por_mes_y_festividad.png", 10, 30, width / 2 - 15)
+    pdf.image("dispersion_productos_almacenados_vs_vendidos.png", width / 2 + 10, 30, width / 2 - 15)
 
     pdf.ln(70)
     # Add some words to PDF
@@ -393,8 +393,8 @@ def create_pdf(df):
                  "3.  Las visualizaciones a continuación muestran el pronostico de las futuras "
                  "ganancias mensuales")
     pdf.ln(15)
-    pdf.image("images/dispersion_productos_vendidos_vs_almacenados.png", 10, 130, width / 2 - 15)
-    pdf.image("images/ganancias_mensuales.png", width / 2 + 10, 130, width / 2 - 15)
+    pdf.image("dispersion_productos_vendidos_vs_almacenados.png", 10, 130, width / 2 - 15)
+    pdf.image("ganancias_mensuales.png", width / 2 + 10, 130, width / 2 - 15)
     # Guardar el PDF
     pdf_filename = "resultados_prediccion.pdf"
     pdf.output(pdf_filename)
