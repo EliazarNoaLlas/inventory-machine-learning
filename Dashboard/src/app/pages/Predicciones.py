@@ -19,7 +19,11 @@ import plotly.express as px
 import numpy as np
 from fpdf import FPDF
 import base64
-
+import fpdf
+from fpdf import FPDF
+import time
+import matplotlib.pyplot as plt
+import dataframe_image as dfi
 
 # ========== Configurar la página ================
 st.set_page_config(
@@ -168,6 +172,136 @@ with container2:
                     unsafe_allow_html=True)
 
 
+# ------------------------ Preparation del Reporte en PDF ---------------------------
+# Función para establecer el color de fondo en función del valor de la columna 'PRODUCTOS VENDIDOS'
+def color_products_sold(value):
+    if value > 10:
+        color = 'background-color: #11F248; color: black'  # Verde oscuro para valores altos
+    elif value > 5:
+        color = 'background-color: #8AF211; color: black'  # Verde claro para valores medianos
+    else:
+        color = 'background-color: #C4F423; color: black'  # Amarillo para valores bajos
+    return color
+
+
+# Renombrar la columna 'PRODUCTOS VENDIDOS' a 'PRODUCTOS QUE SE VENDERÁN'
+df_con_predicciones = df_con_predicciones.rename(columns={'PRODUCTOS VENDIDOS': 'PRODUCTOS QUE SE VENDERÁN'})
+
+# Eliminar la columna del índice del DataFrame original
+df_con_predicciones = df_con_predicciones.reset_index(drop=True)
+
+# Aplicar estilo a la columna 'PRODUCTOS VENDIDOS' con barras
+styled_df = df_con_predicciones.style.bar(subset=['PRODUCTOS QUE SE VENDERÁN'], color="#4167E1")
+
+# Agregar estilo condicional a la columna 'PRODUCTOS ALMACENADOS'
+styled_df = styled_df.apply(lambda x: pd.Series('', index=x.index, dtype=object), axis=1)  # Reiniciar estilos
+styled_df = styled_df.applymap(color_products_sold, subset=['PRODUCTOS ALMACENADOS'])
+
+# Aplicar estilo adicional para bordes
+styled_df = styled_df.set_table_styles([{
+    'selector': 'th',
+    'props': [('border', '1px solid black'), ('text-align', 'center')]
+}, {
+    'selector': 'td',
+    'props': [('border', '1px solid black')]
+}])
+
+# Exportar DataFrame con estilo como una imagen
+dfi.export(styled_df, 'images/ventas_mensuales.png')
+
+
+def generate_matplotlib_line_chart(df, filename):
+    # Define paleta de colores para festividad
+    festividad_palette = {0: '#EB2D53', 1: '#2B21EB'}
+    # Create subplot and plot
+    fig, ax = plt.subplots()
+    for festividad, data in df.groupby('FESTIVIDAD'):
+        ax.plot(data.index, data['PRODUCTOS QUE SE VENDERÁN'],
+                label='Festividad: {}'.format("No" if festividad == 0 else "Sí"),
+                color=festividad_palette[festividad])
+    # Set Title
+    ax.set_title('Productos vendidos por Mes', fontweight="bold")
+    # Set xlabel and ylabel
+    ax.set_xlabel('Mes')
+    ax.set_ylabel('Productos vendidos')
+    # Set xticks to be the index of the dataframe
+    ax.set_xticks(df.index)
+    # Set xticklabels to be the months
+    ax.set_xticklabels(df['MES'])
+    # Add legend
+    ax.legend()
+    # Save the plot as a PNG
+    plt.savefig(filename, dpi=300, bbox_inches='tight', pad_inches=0)
+
+
+def generate_matplotlib_scatter_plot(df, filename):
+    # Define color
+    color = '#00E0B7'  # Color personalizado
+    # Create scatter plot
+    fig, ax = plt.subplots()
+    ax.scatter(df['PRODUCTOS ALMACENADOS'], df['PRODUCTOS QUE SE VENDERÁN'], color=color,
+               alpha=0.7)  # Utiliza el color personalizado y reduce la opacidad
+    # Set Title
+    ax.set_title('Productos almacenados vs productos vendidos', fontweight="bold")
+    # Set xlabel and ylabel
+    ax.set_xlabel('PRODUCTOS ALMACENADOS')
+    ax.set_ylabel('PRODUCTOS QUE SE VENDERÁN')
+    # Save the plot as a PNG
+    plt.savefig(filename, dpi=300, bbox_inches='tight', pad_inches=0)
+
+
+# Utilizando las funciones proporcionadas
+generate_matplotlib_line_chart(df_con_predicciones, 'images/productos_vendidos_por_mes_y_festividad.png')
+generate_matplotlib_scatter_plot(df_con_predicciones, 'images/dispersion_productos_almacenados_vs_vendidos.png')
+
+
+def generate_matplotlib_scatter_plot(df, filename):
+    # Create subplot
+    fig, ax = plt.subplots()
+    # Scatter plot
+    ax.scatter(df['PRODUCTOS ALMACENADOS'], df['PRODUCTOS QUE SE VENDERÁN'], color="#F4A261", alpha=0.8)
+    # Set Title
+    ax.set_title('Gráfico de Dispersión: Productos Vendidos vs Productos Almacenados', fontweight="bold")
+    # Set xlabel
+    ax.set_xlabel('Productos Almacenados')
+    # Set ylabel
+    ax.set_ylabel('Productos Que Se Venderán')
+    # Save the plot as a PNG
+    plt.savefig(filename, dpi=300, bbox_inches='tight', pad_inches=0)
+    plt.show()
+
+
+def generate_profit_plot(df, filename):
+    # Calculate profit
+    df['Ganancias'] = df['PRODUCTOS QUE SE VENDERÁN'] * df['PRECIO DE VENTA'] - (
+            df['GASTO DE MARKETING'] + df['GASTO DE ALMACENAMIENTO'])
+    # Create subplot
+    fig, ax = plt.subplots()
+    # Bar plot
+    ax.bar(df.index, df['Ganancias'], color="#FF5733", label='Ganancias')  # Gráfico de barras para ganancias
+    # Line plot for better visualization of profit trend
+    ax.plot(df.index, df['Ganancias'], color="#0066FF", marker='o', linestyle='-', linewidth=2,
+            label='Ganancias (Tendencia)')  # Gráfico de línea para tendencia de ganancias
+    # Set Title
+    ax.set_title('Gráfico de Ganancias por Mes', fontweight="bold")
+    # Set xlabel
+    ax.set_xlabel('MES')
+    # Set xticks to be the index of the dataframe
+    ax.set_xticks(df.index)
+    # Set xticklabels to be the months
+    ax.set_xticklabels(df['MES'])
+    # Set ylabel
+    ax.set_ylabel('Ganancias ($)')
+    # Add legend
+    ax.legend()
+    # Save the plot as a PNG
+    plt.savefig(filename, dpi=300, bbox_inches='tight', pad_inches=0)
+
+
+generate_matplotlib_scatter_plot(df_con_predicciones, 'images/dispersion_productos_vendidos_vs_almacenados.png')
+generate_profit_plot(df_con_predicciones, 'images/ganancias_mensuales.png')
+
+
 # Crear una clase personalizada que herede de FPDF
 class PDF(FPDF):
     def header(self):
@@ -180,37 +314,87 @@ class PDF(FPDF):
         self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
 
 
-# Función para crear el PDF
-def create_pdf(df):
-    pdf = PDF()
-    pdf.add_page()
+def create_letterhead(pdf, width, height):
+    # Añadir el membrete
+    pdf.image("images/logo.png", 0, 0, width)
 
-    # Título del PDF
-    pdf.set_font('Arial', 'B', 16)
-    pdf.cell(0, 10, 'Resultados de Predicciones', 0, 1, 'C')
+    # Ajustar la posición vertical para que el título aparezca después del membrete
+    pdf.set_y(height / 4)
+
+
+def create_title(title, pdf):
+    # Add main title
+    pdf.set_font('Helvetica', 'b', 20)
+    pdf.ln(40)
+    pdf.write(5, title)
     pdf.ln(10)
 
-    # Encabezados de columna en negrita
-    pdf.set_font('Arial', 'B', 5)
-    col_width = 25
-    row_height = 10
-    for col in df.columns:
-        # Dividir el nombre de la columna en dos partes
-        col_name_parts = col.split()
-        # Imprimir cada parte con un salto de línea entre ellas
-        for part in col_name_parts:
-            pdf.cell(col_width, row_height, part, 1)
-            pdf.ln(row_height / 2)  # Salto de línea más pequeño
-        pdf.ln(row_height / 2)  # Salto de línea más pequeño adicional para separar las columnas
-    pdf.ln()
+    # Add date of report
+    pdf.set_font('Helvetica', '', 14)
+    pdf.set_text_color(r=128, g=128, b=128)
+    today = time.strftime("%d/%m/%Y")
+    pdf.write(4, f'{today}')
 
-    # Contenido de la tabla
-    pdf.set_font('Arial', '', 12)
-    for index, row in df.iterrows():
-        for col in df.columns:
-            pdf.cell(col_width, row_height, str(row[col]), 1)
-        pdf.ln()
+    # Add line break
+    pdf.ln(10)
 
+
+def write_to_pdf(pdf, words):
+    # Set text colour, font size, and font type
+    pdf.set_text_color(r=0, g=0, b=0)
+    pdf.set_font('Helvetica', '', 12)
+
+    pdf.write(5, words)
+
+
+# Función para crear el PDF
+def create_pdf(df):
+    title = "Resultados de Predicciones"
+    width = 210
+    height = 297
+    # Create PDF
+    pdf = PDF()  # A4 (210 by 297 mm)
+    pdf.add_page()
+
+    # Add lettterhead and title
+    create_letterhead(pdf, width, height)
+    pdf.ln(10)
+    create_title(title, pdf)
+
+    # Add some words to PDF
+    write_to_pdf(pdf, "1. La tabla a continuación ilustra las ventas mensuales del Inventario Predichas:")
+    pdf.ln(15)
+
+    # Add table
+    pdf.image("images/ventas_mensuales.png", w=170)
+    pdf.ln(10)
+
+    write_to_pdf(pdf, "Se observan barras en las celdas de la columna donde se visualiza de mejor manera "
+                      "la cantidad de productos que se venderán")
+
+    '''
+    Second Page of PDF
+    '''
+
+    # Add Page
+    pdf.add_page()
+
+    # Add some words to PDF
+    write_to_pdf(pdf,
+                 "2. Las visualizaciones a continuación muestran la tendencia de las ventas por mes ")
+    pdf.ln(15)
+    # Add the generated visualisations to the PDF
+    pdf.image("images/productos_vendidos_por_mes_y_festividad.png", 10, 30, width / 2 - 15)
+    pdf.image("images/dispersion_productos_almacenados_vs_vendidos.png", width / 2 + 10, 30, width / 2 - 15)
+
+    pdf.ln(70)
+    # Add some words to PDF
+    write_to_pdf(pdf,
+                 "3.  Las visualizaciones a continuación muestran el pronostico de las futuras "
+                 "ganancias mensuales")
+    pdf.ln(15)
+    pdf.image("images/dispersion_productos_vendidos_vs_almacenados.png", 10, 130, width / 2 - 15)
+    pdf.image("images/ganancias_mensuales.png", width / 2 + 10, 130, width / 2 - 15)
     # Guardar el PDF
     pdf_filename = "resultados_prediccion.pdf"
     pdf.output(pdf_filename)

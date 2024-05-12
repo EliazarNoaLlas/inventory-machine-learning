@@ -10,15 +10,12 @@
 
 # ==========================================  Importaciones de bibliotecas ==================================
 
-import streamlit as st
-import plotly.express as px
 import pandas as pd
-import seaborn as sns
-import altair as alt
-import plotly.graph_objects as go
-from matplotlib import pyplot as plt
+import plotly.express as px
+import streamlit as st
 from streamlit_extras.dataframe_explorer import dataframe_explorer
-import calendar
+from streamlit_extras.metric_cards import style_metric_cards
+import altair as alt
 
 # ==========================================  Configurar la página ==================================================
 st.set_page_config(
@@ -119,74 +116,158 @@ festividad_seleccionada = [list(mapeo_festividad.keys())[list(mapeo_festividad.v
 # Filtrar los datos por el rango seleccionado y la festividad seleccionada
 df = df[(df["FESTIVIDAD"].isin(festividad_seleccionada))]
 
+#  =============================================== Mostrar los datos filtrados =========================
+with st.expander("Mostrar Conjunto de Datos"):
+    df = dataframe_explorer(df, case=False)
+    st.dataframe(df, use_container_width=True)
 
-filtered_data = df
+# =============================================== Mostrar estadísticas descriptivas =========================
+st.subheader('Estadísticas Descriptivas:', divider='rainbow', )
 
-# =============================================== Mostrar los datos filtrados
-# Mostrar el DataFrame usando la función dataframe_explorer
-st.write("## Conjunto de Datos:")
-st.write(df)
+st.write(df.describe())
 
-# Mostrar estadísticas descriptivas
-st.write("## Estadísticas Descriptivas:")
-st.write(filtered_data.describe())
+#  =============================================== Mostrar los datos filtrados =========================
+# Dividir el espacio horizontalmente en dos columnas
+col1, col2 = st.columns(2)
 
-# Gráfico de dispersión
-st.write("## Gráfico de Dispersión:")
-scatter_fig = px.scatter(filtered_data, x="PRODUCTOS ALMACENADOS", y="PRODUCTOS VENDIDOS", color="DEMANDA DEL PRODUCTO")
-st.plotly_chart(scatter_fig)
+# Gráfico de dispersión en la primera columna
+with col1:
+    st.subheader('Gráfico de Dispersión:', divider='rainbow', )
+    scatter_fig = px.scatter(df, x="PRODUCTOS ALMACENADOS", y="PRODUCTOS VENDIDOS",
+                             color="DEMANDA DEL PRODUCTO")
+    st.plotly_chart(scatter_fig)
 
-# ==================================== Panel de Estadísticas Rápidas ===============================================
+# Tarjetas métricas en la segunda columna
+with col2:
+    st.subheader('Métricas del Conjunto de Datos:', divider='rainbow', )
+    col1, col2 = st.columns(2)
 
-# Calcular las estadísticas requeridas
-# Calcular el precio de compra del producto
-df["PRECIO DE COMPRA"] = df["GASTO DE ALMACENAMIENTO"] + df["GASTO DE MARKETING"] * df["DEMANDA DEL PRODUCTO"]
+    # Calcular el total de productos almacenados
+    total_productos_almacenados = df["PRODUCTOS ALMACENADOS"].sum()
+    # Calcular el delta para el total de productos almacenados
+    delta_productos_almacenados = total_productos_almacenados - df["PRODUCTOS VENDIDOS"].sum()
+    # Convertir el delta a un tipo de dato compatible
+    delta_productos_almacenados_str = str(delta_productos_almacenados)
 
-# Calcular la inversión realizada
-inversionRealizada = (df['PRODUCTOS ALMACENADOS'] * df['PRECIO DE COMPRA']).sum()
+    # Mostrar la métrica para el total de productos almacenados
+    col1.metric(label="Total de Productos", value=total_productos_almacenados,
+                delta="productos en stock: " + delta_productos_almacenados_str)
 
-# Calcular los gastos totales
-gastosTotales = df["GASTO DE ALMACENAMIENTO"].sum() + (df["GASTO DE MARKETING"] * df["DEMANDA DEL PRODUCTO"]).sum()
+    # Calcular el promedio de precio de venta
+    promedio_precio_venta = round(df["PRECIO DE VENTA"].mean(), 2)
 
-# Calcular el retorno de ventas
-retornoVentas = (df['PRECIO DE VENTA'] * df['PRODUCTOS VENDIDOS']).sum()
+    # Calcular el promedio total de gastos (almacenamiento y marketing)
+    promedio_total_gastos = (df["GASTO DE MARKETING"].sum() + df["GASTO DE ALMACENAMIENTO"].sum()) / len(df)
 
-# Definir estilo CSS para las cartas
-st.markdown("""
-    <style>
-        .card {
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
-            background-color: #f9f9f9;
-            margin-bottom: 20px;
-        }
-        .card-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .card-content {
-            margin-bottom: 10px;
-        }
-    </style>
-""", unsafe_allow_html=True)
+    # Calcular el delta para el promedio de precio de venta con respecto al promedio total de gastos
+    delta_promedio_precio_venta = round(promedio_precio_venta - promedio_total_gastos, 2)
 
-# Mostrar las cartas con las estadísticas rápidas
-st.write("## Estadísticas Rápidas:")
-st.markdown(
-    f"""
-    <div class="card">
-        <div class="card-title">Inversión Realizada</div>
-        <div class="card-content">${inversionRealizada}</div>
-    </div>
-    <div class="card">
-        <div class="card-title">Gastos Totales</div>
-        <div class="card-content">${gastosTotales}</div>
-    </div>
-    <div class="card">
-        <div class="card-title">Retorno de Ventas</div>
-        <div class="card-content">${retornoVentas}</div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+    # Convertir el delta a un tipo de dato compatible
+    delta_promedio_precio_venta_str = str(delta_promedio_precio_venta)
+
+    # Mostrar la métrica para el promedio de precio de venta
+    col1.metric(label="Promedio de Precio de Venta", value=promedio_precio_venta, delta="promedio ganancia: " +
+                                                                                        delta_promedio_precio_venta_str)
+
+    # Calcular la cantidad total de productos vendidos
+    cantidad_total_productos_vendidos = round(df["DEMANDA DEL PRODUCTO"].mean(), 2)
+    # Calcular el delta para la cantidad total de productos vendidos
+    delta_cantidad_total_productos_vendidos = df["FESTIVIDAD"].sum()
+    # Convertir el delta a un tipo de dato compatible
+    delta_cantidad_total_productos_vendidos_str = str(delta_cantidad_total_productos_vendidos)
+
+    # Mostrar la métrica para la cantidad total de productos vendidos
+    col2.metric(label="Demanda del Producto", value=cantidad_total_productos_vendidos,
+                delta="N° Festividades: " + delta_cantidad_total_productos_vendidos_str)
+
+    # Calcular la tasa de crecimiento mensual
+    df["TASA_DE_CRECIMIENTO"] = (
+            df["PRODUCTOS ALMACENADOS"] * df["PRECIO DE VENTA"] * df["DEMANDA DEL PRODUCTO"]).pct_change()
+
+    # Calcular el promedio de la tasa de crecimiento mensual
+    promedio_tasa_crecimiento_mensual = round(df["TASA_DE_CRECIMIENTO"].mean(), 2)
+
+    ultimo_registro = df.iloc[-1]
+    # Calcular las ventas en el último mes
+    ventas_en_ultimo_mes = round(ultimo_registro["DEMANDA DEL PRODUCTO"] * ultimo_registro["PRECIO DE VENTA"], 2)
+
+    # Convertir el promedio de la tasa de crecimiento mensual a un tipo de dato compatible
+    promedio_tasa_crecimiento_mensual_str = str(ventas_en_ultimo_mes)
+
+    # Mostrar la métrica para el promedio de la tasa de crecimiento mensual
+    col2.metric(label="Tasa de Crecimiento Mensual", value=promedio_tasa_crecimiento_mensual,
+                delta= promedio_tasa_crecimiento_mensual_str + " ventas en el ultimo mes")
+
+    # Calcular las ventas totales para cada mes multiplicando la demanda del producto por el precio de venta
+    ventas_por_mes = df.groupby("MES").apply(lambda x: (x["DEMANDA DEL PRODUCTO"] * x["PRECIO DE VENTA"]).sum())
+    # Encontrar el mes con mayores ventas
+    mes_con_mas_ventas = ventas_por_mes.idxmax()
+    # Calcular las ventas en el mes con más ventas
+    ventas_en_mes_con_mas_ventas = round(ventas_por_mes.max(), 2)
+    # Calcular el delta como la diferencia entre las ventas en el último mes y el mes con más ventas
+    delta_ventas = round(ventas_en_ultimo_mes - ventas_en_mes_con_mas_ventas, 2)
+    # Convertir el delta a un tipo de dato compatible
+    delta_ventas_str = str(delta_ventas)
+
+    # Mostrar la métrica para el mes con más ventas
+    col1.metric(label="Mes con Mayor Ventas", value=f"{mes_con_mas_ventas} "
+                                                    f"({ventas_en_mes_con_mas_ventas} $)",
+                delta=delta_ventas_str + " tasa de ventas actual")
+
+    # Calcular la ganancia total
+    ingresos_total = round((df["DEMANDA DEL PRODUCTO"] * df["PRECIO DE VENTA"]).sum() - (
+            df["GASTO DE MARKETING"].sum() + df["GASTO DE ALMACENAMIENTO"].sum()), 2)
+    # Calcular el delta para la ganancia total
+    delta_ganancia_total = round(ingresos_total - df["GASTO DE MARKETING"].sum(), 2)
+    # Convertir el delta a un tipo de dato compatible
+    delta_ganancia_total_str = str(delta_ganancia_total)
+
+    # Mostrar la métrica para la ganancia total
+    col2.metric(label="Ingreso Total", value=ingresos_total, delta="ganancia: " + delta_ganancia_total_str)
+
+    # Estilo de las tarjetas métricas
+    st.write('')
+    st.write('')
+    st.write('')
+    st.write('')
+    st.write('')
+    st.write('')
+    st.write('')
+    from streamlit_extras.metric_cards import style_metric_cards
+
+    style_metric_cards(background_color="#596073", border_left_color="#F71938", border_color="#1f66bd",
+                       box_shadow="#F71938")
+
+
+# Subdividir el espacio disponible en dos columnas
+a1, a2 = st.columns(2)
+
+# Dentro de la columna a1
+with a1:
+    # Título para el gráfico interactivo de círculos
+    st.subheader('Gasto de Almacenamiento vs Productos Almacenados', divider='rainbow')
+
+    # Crear un gráfico interactivo de círculos con Altair
+    scatter_chart = alt.Chart(df).mark_circle().encode(
+        x='PRODUCTOS ALMACENADOS',
+        y='GASTO DE ALMACENAMIENTO',
+        color='MES:N'
+    ).interactive()
+
+    # Mostrar el gráfico interactivo de círculos
+    st.altair_chart(scatter_chart, use_container_width=True)
+
+# Dentro de la columna a2
+with a2:
+    # Título para el gráfico de barras
+    st.subheader('Productos Vendidos por Mes', divider='rainbow')
+
+    # Crear un gráfico de barras con Altair
+    bar_chart = alt.Chart(df).mark_bar().encode(
+        x='MES:N',
+        y='PRODUCTOS VENDIDOS',
+        color='FESTIVIDAD:Q'
+    )
+
+    # Mostrar el gráfico de barras
+    st.altair_chart(bar_chart, use_container_width=True)
