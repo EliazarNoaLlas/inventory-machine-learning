@@ -205,8 +205,8 @@ styled_df = styled_df.set_table_styles([{
 }])
 
 # Exportar DataFrame con estilo como una imagen
-dfi.export(styled_df, 'images/ventas_mensuales.png',
-           chrome_path='C:/Program Files/Google/Chrome/Application/chrome.exe')
+# dfi.export(styled_df, 'images/ventas_mensuales.png',
+#            chrome_path='C:/Program Files/Google/Chrome/Application/chrome.exe')
 
 
 def generate_matplotlib_line_chart(df, filename):
