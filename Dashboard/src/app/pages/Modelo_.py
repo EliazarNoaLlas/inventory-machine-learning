@@ -11,58 +11,54 @@
 # ================================== Importando Librerias =============================
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, make_scorer
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import LabelEncoder
 import streamlit as st
-import plotly as pl
 import plotly.express as px
 import plotly.graph_objects as go
-import pandas as pd
-import warnings
-from sklearn.model_selection import cross_val_score, KFold
-from sklearn.metrics import make_scorer
-from sklearn import metrics
+from pyod.models.knn import KNN
 
-warnings.filterwarnings('ignore')
+# ==========================================  Manejo de datos  =====================================================
+def normalizar_estandarizar(df):
+    scaler = MinMaxScaler()
+    df_normalized = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
 
-# ==========================================  Configurar la página =====================================================
-st.set_page_config(
-    page_title="Modelado",
-    page_icon=":chart_with_upwards_trend:",
-    layout="wide"
-)
-# ======================================================================================================================
-# Cargar el componente de BannerPersonalizado.html
-with open("./utils/Baner.html", "r", encoding="utf-8") as file:
-    custom_banner_html = file.read()
+    standardizer = StandardScaler()
+    df_standardized = pd.DataFrame(standardizer.fit_transform(df_normalized), columns=df.columns)
 
-# Agregar estilos CSS desde la carpeta utils
-with open("./utils/Baner_style.css", "r", encoding="utf-8") as file:
-    custom_styles_css = file.read()
-# Mostrar el componente de Banner en Streamlit con los estilos CSS
-st.markdown("""
-    <style>
-        %s
-    </style>
-""" % custom_styles_css, unsafe_allow_html=True)
+    return df_standardized
 
-st.markdown(custom_banner_html, unsafe_allow_html=True)
-# ==========================================  Titulo de la Pagina =====================================================
-st.markdown("## :date: Modelo RandomForest Regression")
-st.markdown('<style>div.block-container{padding-top:1rem;}</style>', unsafe_allow_html=True)
 
-# ================================================  Cargar Datos  =====================================================
-df = pd.read_excel("./data/Melsol-test.xlsx", engine="openpyxl")
+def evaluar_modelo(modelo, X_train, y_train, X_test, y_test):
+    modelo.fit(X_train, y_train)
+    predicciones = modelo.predict(X_test)
+    mae = mean_absolute_error(y_test, predicciones)
+    mse = mean_squared_error(y_test, predicciones)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(y_test, predicciones)
+    return mae, mse, rmse, r2
 
-# ====================================================== MANEJO DE DATOS ===============================================
-# Función para manejar outliers en una columna
+
+def detectar_outliers_pyod(df):
+    outliers = {}
+    for column in df.columns:
+        detector = KNN()
+        data = df[[column]].values
+        detector.fit(data)
+        pred = detector.labels_
+        outliers[column] = pred.sum()
+
+    columnas_con_outliers = [col for col, num_outliers in outliers.items() if num_outliers > 0.05 * len(df)]
+    return columnas_con_outliers
+
+
 def handle_outliers(column, cap_value=None):
     Q1 = column.quantile(0.25)
     Q3 = column.quantile(0.75)
     IQR = Q3 - Q1
+
     lower_limit = Q1 - 1.5 * IQR
     upper_limit = Q3 + 1.5 * IQR
 
@@ -74,38 +70,71 @@ def handle_outliers(column, cap_value=None):
     return column
 
 
-# Función para analizar y eliminar columnas con un solo valor único
-def analizar_y_eliminar_ruido(df):
-    columnas_a_eliminar = []
+def detectar_columnas_ruidosas(df, threshold=0.05):
+    columnas_ruidosas = []
+    total_filas = len(df)
 
     for columna in df.columns:
-        if df[columna].nunique() == 1:
-            columnas_a_eliminar.append(columna)
-            print(f'Columna "{columna}" tiene un solo valor único. Se considera ruido.')
+        num_valores_unicos = df[columna].nunique()
+        proporcion_valores_unicos = num_valores_unicos / total_filas
 
-    df_sin_ruido = df.drop(columnas_a_eliminar, axis=1)
+        if proporcion_valores_unicos < threshold:
+            columnas_ruidosas.append(columna)
 
-    print(f'\nColumnas eliminadas: {columnas_a_eliminar}')
-
-    return df_sin_ruido
+    return columnas_ruidosas
 
 
-# Aplicar funciones para manejar outliers y eliminar ruido
-df['PRODUCTOS ALMACENADOS'] = handle_outliers(df['PRODUCTOS ALMACENADOS'])
-df['DEMANDA DEL PRODUCTO'] = handle_outliers(df['DEMANDA DEL PRODUCTO'])
-df['PRODUCTOS VENDIDOS'] = handle_outliers(df['PRODUCTOS VENDIDOS'])
+def flujo_completo(dataset_file, target_column):
+    df = pd.read_excel(dataset_file)
 
-df_sin_ruido = analizar_y_eliminar_ruido(df)
+    columnas_outliers_pyod = detectar_outliers_pyod(df)
+
+    for columna in columnas_outliers_pyod:
+        df[columna] = handle_outliers(df[columna])
+
+    columnas_ruidosas = detectar_columnas_ruidosas(df)
+    df = df.drop(columns=columnas_ruidosas)
+
+    X = df.drop(columns=[target_column])
+    y = df[target_column]
+
+    X = normalizar_estandarizar(X)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    return X_train, X_test, y_train, y_test, df
+
+
+# ==========================================  Configurar la página =====================================================
+st.set_page_config(
+    page_title="Modelado",
+    page_icon=":chart_with_upwards_trend:",
+    layout="wide"
+)
+
+with open("./utils/Baner.html", "r", encoding="utf-8") as file:
+    custom_banner_html = file.read()
+
+with open("./utils/Baner_style.css", "r", encoding="utf-8") as file:
+    custom_styles_css = file.read()
+
+st.markdown("""
+    <style>
+        %s
+    </style>
+""" % custom_styles_css, unsafe_allow_html=True)
+
+st.markdown(custom_banner_html, unsafe_allow_html=True)
+
+st.markdown("## :date: Modelo RandomForest Regression")
+st.markdown('<style>div.block-container{padding-top:1rem;}</style>', unsafe_allow_html=True)
+
 # ====================================================== MANEJO DE DATOS ===============================================
+dataset_file = "./data/Melsol-test.xlsx"
+target_column = 'PRODUCTOS VENDIDOS'
+X_train, X_test, y_train, y_test, df_sin_ruido = flujo_completo(dataset_file, target_column)
 
 # ====================================================== ENTRENAMIENTO =================================================
-X = df_sin_ruido.drop('PRODUCTOS VENDIDOS', axis=1)
-y = df_sin_ruido['PRODUCTOS VENDIDOS']
-
-# Dividir el conjunto de datos en entrenamiento y prueba
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
-
-# Crear el modelo de Random Forest Regression
 bosque = RandomForestRegressor(
     n_estimators=100,
     criterion="squared_error",
@@ -115,43 +144,21 @@ bosque = RandomForestRegressor(
     random_state=42
 )
 
-# Entrenar el modelo en todo el conjunto de datos
 bosque.fit(X_train, y_train)
 
-# Evaluación del modelo
-# Métrica a utilizar (en este caso, negativo del Error Cuadrático
-# Medio para que sea coherente con la validación cruzada)
 metrica = make_scorer(mean_squared_error, greater_is_better=False)
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+resultados_cross_val = cross_val_score(bosque, X_train, y_train, cv=kf, scoring=metrica)
 
-# Validación cruzada
-kf = KFold(n_splits=5, shuffle=True, random_state=42)  # Puedes ajustar el número de divisiones (folds)
-resultados_cross_val = cross_val_score(bosque, X.values, y.values, cv=kf, scoring=metrica)
-
-# Imprimir los resultados de la validación cruzada
-print("Resultados de la validación cruzada:")
-print("MSE por fold:", resultados_cross_val)
-print("Promedio MSE:", resultados_cross_val.mean())
-
-# Métricas adicionales
-# Puntuación R^2 en el conjunto completo
-r2_full_set = bosque.score(X, y)
-print("Puntuación R^2 en el conjunto completo:", r2_full_set)
-
-# Puntuación "out-of-bag" (OOB)
+r2_full_set = bosque.score(X_train, y_train)
 oob_score = bosque.oob_score_
-print("Puntuación OOB:", oob_score)
 
-# Predicciones en el conjunto de prueba
 y_pred = bosque.predict(X_test)
-
-# Puntuación R^2 en el conjunto de prueba
 r2_test_set = r2_score(y_test, y_pred)
-print("Puntuación R^2 en el conjunto de prueba:", r2_test_set)
-
-mae_value = metrics.mean_absolute_error(y_test, y_pred)
-mse_value = metrics.mean_squared_error(y_test, y_pred)
-rmse_value = np.sqrt(metrics.mean_squared_error(y_test, y_pred))
-r2_value = r2_score(y_test, y_pred)
+mae_value = mean_absolute_error(y_test, y_pred)
+mse_value = mean_squared_error(y_test, y_pred)
+rmse_value = np.sqrt(mse_value)
+r2_value = r2_test_set
 
 # ====================================================== GRAFICANDO ===================================================
 

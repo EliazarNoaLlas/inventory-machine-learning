@@ -11,7 +11,7 @@
 # ================================= Importando Librerias =============================
 from pages.Modelo_ import bosque
 # Importar las columnas del modelo
-from pages.Modelo_ import X
+from pages.Modelo_ import X_train
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
@@ -80,7 +80,7 @@ else:
 # ============================================================================================================================
 
 # Filtrar las características necesarias utilizando las columnas del modelo
-columnas_necesarias = X.columns
+columnas_necesarias = X_train.columns
 nuevos_datos = df[columnas_necesarias]
 predicciones = bosque.predict(nuevos_datos) + 10
 predicciones = np.round(predicciones).astype(int)
@@ -149,7 +149,7 @@ with container2:
     # Botón para realizar predicción
     if st.button("Realizar Predicción"):
         # Filtrar las variables que no son consideradas ruido
-        new_data_filtered = {key: value for key, value in new_data.items() if key in X.columns}
+        new_data_filtered = {key: value for key, value in new_data.items() if key in X_train.columns}
         new_data_df = pd.DataFrame(new_data_filtered, index=[0])
         new_predictions = bosque.predict(new_data_df) + 10
         new_predictions = np.round(new_predictions).astype(int)
@@ -205,8 +205,8 @@ styled_df = styled_df.set_table_styles([{
 }])
 
 # Exportar DataFrame con estilo como una imagen
-# dfi.export(styled_df, 'images/ventas_mensuales.png',
-#            chrome_path='C:/Program Files/Google/Chrome/Application/chrome.exe')
+dfi.export(styled_df, 'images/ventas_mensuales.png',
+           chrome_path='C:/Program Files/Google/Chrome/Application/chrome.exe')
 
 
 def generate_matplotlib_line_chart(df, filename):
