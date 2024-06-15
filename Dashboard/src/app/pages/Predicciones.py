@@ -188,25 +188,47 @@ df_con_predicciones = df_con_predicciones.rename(columns={'PRODUCTOS VENDIDOS': 
 # Eliminar la columna del índice del DataFrame original
 df_con_predicciones = df_con_predicciones.reset_index(drop=True)
 
-# Aplicar estilo a la columna 'PRODUCTOS VENDIDOS' con barras
-styled_df = df_con_predicciones.style.bar(subset=['PRODUCTOS QUE SE VENDERÁN'], color="#4167E1")
+# Extraer los datos del DataFrame
+data = df_con_predicciones.values
+columns = df_con_predicciones.columns
 
-# Agregar estilo condicional a la columna 'PRODUCTOS ALMACENADOS'
-styled_df = styled_df.apply(lambda x: pd.Series('', index=x.index, dtype=object), axis=1)  # Reiniciar estilos
-styled_df = styled_df.applymap(color_products_sold, subset=['PRODUCTOS ALMACENADOS'])
+# Crear la figura y el eje
+fig, ax = plt.subplots(figsize=(10, 6))  # Ajusta el tamaño de la figura según sea necesario
+ax.axis('off')  # Oculta los ejes
 
-# Aplicar estilo adicional para bordes
-styled_df = styled_df.set_table_styles([{
-    'selector': 'th',
-    'props': [('border', '1px solid black'), ('text-align', 'center')]
-}, {
-    'selector': 'td',
-    'props': [('border', '1px solid black')]
-}])
+# Convierte el DataFrame a una tabla de matplotlib
+mpl_table = ax.table(cellText=data, colLabels=columns, cellLoc='center', loc='center')
 
-# Exportar DataFrame con estilo como una imagen
-dfi.export(styled_df, 'images/ventas_mensuales.png',
-           chrome_path='C:/Program Files/Google/Chrome/Application/chrome.exe')
+# Aplicar estilo visualmente después
+for (i, j), cell in mpl_table.get_celld().items():
+    if i == 0:
+        cell.set_text_props(weight='bold')  # Encabezados en negrita
+        cell.set_fontsize(12)  # Tamaño de fuente para los encabezados
+    else:
+        value = df_con_predicciones.iat[i-1, j]
+        if j == 1:  # Columna 'PRODUCTOS ALMACENADOS'
+            # Aplicar color basado en la función
+            style = color_products_sold(value)
+            bg_color = style.split(';')[0].split(':')[1].strip()
+            text_color = style.split(';')[1].split(':')[1].strip()
+            cell.set_facecolor(bg_color)
+            cell.set_text_props(color=text_color)
+        elif j == 0:  # Columna 'PRODUCTOS QUE SE VENDERÁN' con barras
+            if value > 10:
+                cell.set_facecolor('#4167E1')
+                cell.set_text_props(color='white')
+            else:
+                cell.set_facecolor('white')
+                cell.set_text_props(color='black')
+
+# Aplicar bordes
+mpl_table.auto_set_font_size(False)
+mpl_table.set_fontsize(10)  # Tamaño de fuente para las celdas
+mpl_table.scale(1.2, 1.2)  # Escalar la tabla
+
+# Guardar la imagen
+plt.savefig('images/ventas_mensuales_alternativa.png', bbox_inches='tight', pad_inches=0.1)
+plt.close(fig)
 
 
 def generate_matplotlib_line_chart(df, filename):
