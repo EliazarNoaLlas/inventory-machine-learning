@@ -9,9 +9,7 @@
 # Last Modified: 2024-05-03
 
 # ================================= Importando Librerias =============================
-from pages.Modelo_ import bosque
-# Importar las columnas del modelo
-from pages.Modelo_ import X_train
+from pages.Modelo_ import bosque, X_train
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
@@ -21,7 +19,8 @@ import base64
 from fpdf import FPDF
 import time
 import matplotlib.pyplot as plt
-import dataframe_image as dfi
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from pyod.models.knn import KNN
 
 # ========== Configurar la página ================
 st.set_page_config(
@@ -77,12 +76,45 @@ if uploaded_file is not None:
         st.error(f"Error al cargar el archivo: {str(e)}")
 else:
     st.warning("Ningún archivo se ha cargado, se utilizará un archivo por defecto.")
+
+
 # ============================================================================================================================
+def normalizar_estandarizar(df):
+    scaler = MinMaxScaler()
+    df_normalized = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
+
+    standardizer = StandardScaler()
+    df_standardized = pd.DataFrame(standardizer.fit_transform(df_normalized), columns=df.columns)
+
+    return df_standardized
+
+
+def handle_outliers(column, cap_value=None):
+    Q1 = column.quantile(0.25)
+    Q3 = column.quantile(0.75)
+    IQR = Q3 - Q1
+
+    lower_limit = Q1 - 1.5 * IQR
+    upper_limit = Q3 + 1.5 * IQR
+
+    if cap_value is not None:
+        column = column.clip(lower=lower_limit, upper=cap_value)
+    else:
+        column = column.clip(lower=lower_limit, upper=upper_limit)
+
+    return column
+
 
 # Filtrar las características necesarias utilizando las columnas del modelo
 columnas_necesarias = X_train.columns
 nuevos_datos = df[columnas_necesarias]
-predicciones = bosque.predict(nuevos_datos) + 10
+
+# Aplicar el preprocesamiento de outliers y normalización/estandarización
+for columna in columnas_necesarias:
+    nuevos_datos[columna] = handle_outliers(nuevos_datos[columna])
+nuevos_datos = normalizar_estandarizar(nuevos_datos)
+# Generar predicciones
+predicciones = bosque.predict(nuevos_datos)
 predicciones = np.round(predicciones).astype(int)
 # Crear un nuevo DataFrame con las predicciones
 df_predicciones = pd.DataFrame({"PRODUCTOS VENDIDOS": predicciones})
@@ -171,19 +203,35 @@ with container2:
 
 
 # ------------------------ Preparation del Reporte en PDF ---------------------------
-# Función para establecer el color de fondo en función del valor de la columna 'PRODUCTOS VENDIDOS'
-def color_products_sold(value):
-    if value > 10:
-        color = 'background-color: #11F248; color: black'  # Verde oscuro para valores altos
-    elif value > 5:
-        color = 'background-color: #8AF211; color: black'  # Verde claro para valores medianos
+# Función para establecer el color de fondo en función del valor de la columna
+def color_based_on_percentile(value, mean_value, p25, p50):
+    if value > mean_value:
+        color = 'background-color: #11F248; color: black'  # Verde oscuro para valores altos (por encima del promedio)
+    elif value > p50:
+        color = 'background-color: #8AF211; color: black'  # Verde claro para valores medianos (entre p50 y mean)
+    elif value > p25:
+        color = 'background-color: #C4F423; color: black'  # Amarillo para valores bajos (entre p25 y p50)
     else:
-        color = 'background-color: #C4F423; color: black'  # Amarillo para valores bajos
+        color = 'background-color: #F4F141; color: black'  # Amarillo claro para valores muy bajos (menores al p25)
     return color
 
 
 # Renombrar la columna 'PRODUCTOS VENDIDOS' a 'PRODUCTOS QUE SE VENDERÁN'
 df_con_predicciones = df_con_predicciones.rename(columns={'PRODUCTOS VENDIDOS': 'PRODUCTOS QUE SE VENDERÁN'})
+
+
+# Calcular promedio y percentiles para ambas columnas
+def calculate_statistics(df, column):
+    mean_value = df[column].mean()
+    p25 = np.percentile(df[column], 25)
+    p50 = np.percentile(df[column], 50)
+    return mean_value, p25, p50
+
+
+mean_value_almacenados, p25_almacenados, p50_almacenados = calculate_statistics(df_con_predicciones,
+                                                                                'PRODUCTOS ALMACENADOS')
+mean_value_vendidos, p25_vendidos, p50_vendidos = calculate_statistics(df_con_predicciones,
+                                                                       'PRODUCTOS QUE SE VENDERÁN')
 
 # Eliminar la columna del índice del DataFrame original
 df_con_predicciones = df_con_predicciones.reset_index(drop=True)
@@ -193,7 +241,7 @@ data = df_con_predicciones.values
 columns = df_con_predicciones.columns
 
 # Crear la figura y el eje
-fig, ax = plt.subplots(figsize=(10, 6))  # Ajusta el tamaño de la figura según sea necesario
+fig, ax = plt.subplots(figsize=(16, 6))  # Ajusta el tamaño de la figura según sea necesario
 ax.axis('off')  # Oculta los ejes
 
 # Convierte el DataFrame a una tabla de matplotlib
@@ -202,32 +250,33 @@ mpl_table = ax.table(cellText=data, colLabels=columns, cellLoc='center', loc='ce
 # Aplicar estilo visualmente después
 for (i, j), cell in mpl_table.get_celld().items():
     if i == 0:
-        cell.set_text_props(weight='bold')  # Encabezados en negrita
+        cell.set_text_props(weight='bold', fontsize=12)  # Encabezados en negrita y tamaño de fuente reducido a 12
+        cell.set_height(0.15)  # Aumentar altura de la celda del encabezado
         cell.set_fontsize(12)  # Tamaño de fuente para los encabezados
     else:
-        value = df_con_predicciones.iat[i-1, j]
-        if j == 1:  # Columna 'PRODUCTOS ALMACENADOS'
+        value = df_con_predicciones.iat[i - 1, j]
+        if j == df_con_predicciones.columns.get_loc('PRODUCTOS ALMACENADOS'):  # Columna 'PRODUCTOS ALMACENADOS'
             # Aplicar color basado en la función
-            style = color_products_sold(value)
+            style = color_based_on_percentile(value, mean_value_almacenados, p25_almacenados, p50_almacenados)
             bg_color = style.split(';')[0].split(':')[1].strip()
             text_color = style.split(';')[1].split(':')[1].strip()
             cell.set_facecolor(bg_color)
             cell.set_text_props(color=text_color)
-        elif j == 0:  # Columna 'PRODUCTOS QUE SE VENDERÁN' con barras
-            if value > 10:
-                cell.set_facecolor('#4167E1')
-                cell.set_text_props(color='white')
-            else:
-                cell.set_facecolor('white')
-                cell.set_text_props(color='black')
+        elif j == df_con_predicciones.columns.get_loc(
+                'PRODUCTOS QUE SE VENDERÁN'):  # Columna 'PRODUCTOS QUE SE VENDERÁN'
+            style = color_based_on_percentile(value, mean_value_vendidos, p25_vendidos, p50_vendidos)
+            bg_color = style.split(';')[0].split(':')[1].strip()
+            text_color = style.split(';')[1].split(':')[1].strip()
+            cell.set_facecolor(bg_color)
+            cell.set_text_props(color=text_color)
 
 # Aplicar bordes
 mpl_table.auto_set_font_size(False)
 mpl_table.set_fontsize(10)  # Tamaño de fuente para las celdas
-mpl_table.scale(1.2, 1.2)  # Escalar la tabla
+mpl_table.scale(1.5, 1.5)  # Escalar la tabla horizontalmente y verticalmente
 
 # Guardar la imagen
-plt.savefig('images/ventas_mensuales_alternativa.png', bbox_inches='tight', pad_inches=0.1)
+plt.savefig('images/ventas_mensuales.png', bbox_inches='tight', pad_inches=0.1)
 plt.close(fig)
 
 
